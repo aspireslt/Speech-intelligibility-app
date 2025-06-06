@@ -2,10 +2,29 @@ import streamlit as st
 import random
 import pandas as pd
 
-# -------------------------------
-# Setup
-st.set_page_config(page_title="Speech Intelligibility Test", layout="centered")
-st.title("Speech Intelligibility Assessment")
+# Setup page without title
+st.set_page_config(page_title="Speech Intelligibility Test", layout="centered", initial_sidebar_state="collapsed")
+
+# Remove Streamlit default menu and footer
+hide_streamlit_style = """
+    <style>
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+        button.stButton > button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 0.75em 2em;
+            font-size: 1.2em;
+            border-radius: 8px;
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            box-shadow: 0px 4px 8px rgba(0,0,0,0.2);
+        }
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # Word and sentence pools
 words = [
@@ -26,7 +45,7 @@ sentences = [
     "He drew a star on paper.", "We climbed the tall mountain."
 ]
 
-# Random selection and session state initialization
+# Random selection and session state
 if 'word_items' not in st.session_state:
     st.session_state.word_items = random.sample(words, 15)
     st.session_state.sentence_items = random.sample(sentences, 15)
@@ -42,14 +61,14 @@ if not st.session_state.complete:
     if st.session_state.index < total_items:
         current_item = all_items[st.session_state.index]
         st.markdown(
-            f"<h1 style='text-align: center; font-size: 48px;'>{current_item}</h1>",
+            f"<h1 style='text-align: center; font-size: 60px; padding-top: 20vh;'>{current_item}</h1>",
             unsafe_allow_html=True
         )
-        if st.button("Next"):
+        if st.button("➡"):
             st.session_state.index += 1
     else:
         st.session_state.complete = True
-        st.experimental_rerun()
+        st.rerun()
 
 # SLT input phase
 if st.session_state.complete:
