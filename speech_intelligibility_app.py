@@ -7,7 +7,7 @@ import pandas as pd
 st.set_page_config(page_title="Speech Intelligibility Test", layout="centered")
 st.title("Speech Intelligibility Assessment")
 
-# Full word and sentence lists
+# Word and sentence pools
 words = [
     "cat", "dog", "fish", "shoe", "ball", "sun", "car", "book", "chair", "milk",
     "house", "tree", "phone", "watch", "glass", "train", "plane", "spoon", "clock", "door",
@@ -26,55 +26,59 @@ sentences = [
     "He drew a star on paper.", "We climbed the tall mountain."
 ]
 
-# Randomly select 15 of each
+# Random selection and session state initialization
 if 'word_items' not in st.session_state:
     st.session_state.word_items = random.sample(words, 15)
     st.session_state.sentence_items = random.sample(sentences, 15)
-    st.session_state.responses = []
     st.session_state.index = 0
+    st.session_state.complete = False
 
-# Function to reset
-def restart():
-    st.session_state.word_items = random.sample(words, 15)
-    st.session_state.sentence_items = random.sample(sentences, 15)
-    st.session_state.responses = []
-    st.session_state.index = 0
-
-# Combine words and sentences for display
+# Combine test items
 all_items = st.session_state.word_items + st.session_state.sentence_items
 total_items = len(all_items)
 
-# Display one item at a time
-if st.session_state.index < total_items:
-    current_item = all_items[st.session_state.index]
-    st.header(f"Item {st.session_state.index + 1} of {total_items}")
-    st.subheader(current_item)
-
-    transcription = st.text_input("Transcription:")
-    correct = st.selectbox("Was it correct?", ["", "Yes", "No"])
-
-    if st.button("Next"):
-        if correct != "":
-            st.session_state.responses.append({
-                "Item": current_item,
-                "Transcription": transcription,
-                "Correct": correct
-            })
+# Patient-facing phase
+if not st.session_state.complete:
+    if st.session_state.index < total_items:
+        current_item = all_items[st.session_state.index]
+        st.markdown(
+            f"<h1 style='text-align: center; font-size: 48px;'>{current_item}</h1>",
+            unsafe_allow_html=True
+        )
+        if st.button("Next"):
             st.session_state.index += 1
-        else:
-            st.warning("Please mark the item as correct or incorrect.")
-else:
-    st.success("Test complete!")
-    df = pd.DataFrame(st.session_state.responses)
-    correct_count = df[df['Correct'] == "Yes"].shape[0]
-    accuracy = round((correct_count / total_items) * 100, 2)
-    st.subheader(f"Total Score: {correct_count}/{total_items} ({accuracy}%)")
-    st.dataframe(df)
+    else:
+        st.session_state.complete = True
+        st.experimental_rerun()
 
-    # Download CSV
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button("Download Results", data=csv, file_name="intelligibility_results.csv", mime="text/csv")
+# SLT input phase
+if st.session_state.complete:
+    st.subheader("Clinician Scoring Panel")
+    responses = []
 
-    # Restart button
-    if st.button("Start New Test"):
-        restart()
+    with st.form("scoring_form"):
+        for i, item in enumerate(all_items):
+            st.markdown(f"**Item {i+1}: {item}**")
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                understood = st.radio(f"Was it understood?", ["Yes", "No"], key=f"understood_{i}")
+            with col2:
+                notes = ""
+                if understood == "No":
+                    notes = st.text_input("Enter notes/transcription:", key=f"notes_{i}")
+            responses.append({
+                "Item": item,
+                "Understood": understood,
+                "Notes": notes if understood == "No" else ""
+            })
+        submitted = st.form_submit_button("Calculate Score")
+
+    if submitted:
+        df = pd.DataFrame(responses)
+        understood_count = df[df['Understood'] == "Yes"].shape[0]
+        accuracy = round((understood_count / total_items) * 100, 2)
+        st.success(f"Score: {understood_count}/{total_items} = {accuracy}% intelligibility")
+        st.dataframe(df)
+
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button("Download Results", data=csv, file_name="manual_scoring_results.csv", mime="text/csv")
